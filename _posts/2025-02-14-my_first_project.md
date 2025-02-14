@@ -1,0 +1,16 @@
+---
+title: "My First Project"
+date: 2025-02-14
+---
+
+## **PROFESSIONAL CERTIFICATE. Google Data Analytics**
+
+## Case Study 2
+
+## **Author**: Vladimir Ruiz Alvarez
+
+## Background
+
+**Bellabeat**, a manufacturer of high-tech products focused on women's health, is a small but successful company that has the potential to establish a significant presence in the global market for smart devices. The Creative Director of Bellabeat believes that analyzing the activity data from smart devices could unveil new business opportunities for the company. Given this scenario, she proposes to the company's marketing analytics team to **analyze the data from the smart devices to understand how consumers use their devices**. The findings could assist in shaping the company's marketing strategy.
+
+## Data analysis process
