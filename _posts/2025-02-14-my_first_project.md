@@ -164,3 +164,28 @@ It was decided to work with the databases **bd1** (**dailyActivity**), **bd6** (
 >-   **bd6 (hourlyCalories)**: Employed to analyze usage patterns throughout the day, also based on calorie expenditure. 
 >
 >-   **bd18 (weightLoglnfo)**: This database was utilized to describe the anthropometric variables whenever possible.
+
+### 3.2.1) Harmonizing date formats
+
+The data review revealed some inconsistencies in the **date formats** among different databases. Therefore, the next step would be to harmonize these formats in the databases to be used. This is crucial because we aim to ensure that the date and time information possesses the correct format for effective utilization in R, aligning it with the system's time zone.
+
+```r
+# Harmonizing date formats
+
+# bd1 (dailyActivity)
+bd1$ActivityDate=as.POSIXct(bd1$ActivityDate, format="%m/%d/%Y", tz=Sys.timezone())
+bd1$date <- format(bd1$ActivityDate, format = "%m/%d/%y")
+
+# bd6 (hourlyCalories)
+bd6$ActivityHour=as.POSIXct(bd6$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+bd6$time <- format(bd6$ActivityHour, format = "%H:%M")
+bd6$date <- format(bd6$ActivityHour, format = "%m/%d/%y")
+
+# bd17 ((sleepDay)
+bd17$SleepDay=as.POSIXct(bd17$SleepDay, format="%m/%d/%Y", tz=Sys.timezone())
+bd17$date <- format(bd17$SleepDay, format = "%m/%d/%y")
+
+# bd18 (weightLoglnfo)
+bd18$Date=as.POSIXct(bd18$Date, format="%m/%d/%Y", tz=Sys.timezone())
+bd18$date <- format(bd18$Date, format = "%m/%d/%y")
+```
