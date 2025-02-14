@@ -86,8 +86,81 @@ library(gridExtra) # Offers functions for arranging multiple grid-based plots an
 library(cowplot) # Provides tools for combining and arranging plots
 library(patchwork) # Allows for advanced plot composition
 ```
+### 3.1.2) Loading dataset
 
+```{r}
+# Loading databases
+bd1 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyActivity_merged.csv")
+bd2 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyCalories_merged.csv")
+bd3 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailyIntensities_merged.csv")
+bd4 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/dailySteps_merged.csv")
+bd5 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/heartrate_seconds_merged.csv")
+bd6 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlyCalories_merged.csv")
+bd7 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlyIntensities_merged.csv")
+bd8 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/hourlySteps_merged.csv")
+bd9 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteCaloriesNarrow_merged.csv")
+bd10 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteCaloriesWide_merged.csv")
+bd11 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteIntensitiesNarrow_merged.csv")
+bd12 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteIntensitiesWide_merged.csv")
+bd13 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteMETsNarrow_merged.csv")
+bd14 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteSleep_merged.csv")
+bd15 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteStepsNarrow_merged.csv")
+bd16 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/minuteStepsWide_merged.csv")
+bd17 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/sleepDay_merged.csv")
+bd18 <- read.csv("/kaggle/input/fitbit/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/weightLogInfo_merged.csv")
+```
 
+**Comments**: When loading the dataset, an attempt was made to use names as simple as possible in order to facilitate the handling of the data frames while writing the codes. **After making the decision regarding which databases to use for the analyses, the names were changed to ones that are easier to remember**. 
 
+# 3.2) Exploring and cleaning the data
 
+A preliminary review of the databases was conducted using **Microsoft Excel**. The **CSV** files were imported into **Excel** using the '**Import**' option, and the remaining work was done in **R**. In **R**, the files were loaded using the '**read.csv()**' function. The following functions were used to understand the structure of the databases: '**summary()**', '**View()**', '**glimpse()**', '**head()**', '**str()**', '**nrow()**', '**colnames()**', and '**n_distinct(data_base_name$variable_name)**'. These functions provided information such as the number and names of variables (columns), the number of rows, and the data types of each variable. The '**glimpse()**' and '**n_distinct()**' functions are part of the **dplyr package**, while the remaining functions used in this step are part of the R base package.
 
+By using the following lines of code, the different Ids contained in each database can be reviewed:
+
+```r
+Ids <- select(data_base_name, Id) # selects the Id column from a specific database
+print(unique(Ids)) # displays the Ids of a particular database 
+```
+The function '**select()**' is part of the **dplyr package**, which is included in the **tidyverse** collection. This function is used to select specific columns from a data frame. On the other hand, the '**unique()**' function is a base R function used to find unique values in a vector, matrix, or data frame, and when combined with '**print()**', it displays that information in the console.
+
+The table below presents a summary of the overall information extracted from the databases.
+
+![fitbit_table_1.png](attachment:d1032462-6069-423f-936f-76df0e91c1cd.png)
+
+The **dailyActivity**, **dailyCalories**, **dailylntensities** and **dailySteps** databases had the same number of rows (**940**) and the same number of Ids (**33**). To check whether the last three databases were contained within the first one, the following code was used to compare **dailyActivity** with the remaining ones. Here is an example of the code to compare **dailyCalories** with **dailyActivity**:
+
+```r
+# Function: Compare columns
+# Description: Compare specified columns between two databases
+
+compare_columns <- function(database1, database2, column_name) {
+  # Sort both databases by the specified column
+  db1_sorted <- database1[order(database1[[column_name]]), ]
+  db2_sorted <- database2[order(database2[[column_name]]), ]
+  
+  # Extract the columns to compare
+  column_db1 <- db1_sorted[[column_name]]
+  column_db2 <- db2_sorted[[column_name]]
+  
+  # Compare the two columns
+  identical(column_db1, column_db2)
+}
+
+# Example usage to compare the "Id" columns of two databases
+compare_columns(bd1, bd2, "Id")
+
+# Example usage to compare the "Calories" columns of two databases
+compare_columns(bd1, bd2, "Calories")
+```
+To ensure that no difference between two databases regarding the same variable or column is present, the function '**identical()**' should return **TRUE** with the result displayed in the console. In **all the comparisons** that were made, the **result** was **TRUE**, confirming that the variables had the same information. Therefore, it was concluded that there was no need to use **dailyCalories**, **dailylntensities**, and **dailySteps** since they were already included within **dailyActivity**.
+
+For this task (sorting the data frames and extracting the desired columns, as well as comparing the two columns), there is no need to install or load any specific R package. The '**order()**' function, which sorts a vector or matrix based on the values in one or multiple columns, and the '**identical()**' function, which compares whether two objects are identical, in this case, if the two columns extracted from the data frames are equal, are included in the base R. Therefore, there is no need to load any additional package to use them.
+
+It was decided to work with the databases **bd1** (**dailyActivity**), **bd6** (**hourlyCalories**), **bd17** (**sleepDay**) and **bd18** (**weightLoglnfo**).
+
+>-   **bd1 (dailyActivity) + bd17 (sleepDay)**: These two databases were combined to investigate potential differences in device usage between weekends and weekdays, using calorie expenditure as a reference. The majority of the analyses were conducted using these two merged databases.
+>
+>-   **bd6 (hourlyCalories)**: Employed to analyze usage patterns throughout the day, also based on calorie expenditure. 
+>
+>-   **bd18 (weightLoglnfo)**: This database was utilized to describe the anthropometric variables whenever possible.
