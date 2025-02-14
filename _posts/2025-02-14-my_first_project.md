@@ -920,7 +920,7 @@ mtext(subtitle, side = 3, line = 1, cex = 1, font = 1, adj = 0)
 mtext(caption, side = 1, line = 4, cex = 0.8, font = 1, adj = 1)
 ```
 
-![fig2](https://github.com/user-attachments/assets/f4a4ec1e-6178-4101-9b56-48207a85eae1)
+![fig2](https://github.com/user-attachments/assets/cad43eaa-be32-4869-80aa-f28dbd4e3d0e)
 
 ```{r}
 # Summary statistics for 'WeightKg' variable
