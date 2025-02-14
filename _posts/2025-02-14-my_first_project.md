@@ -189,3 +189,1264 @@ bd17$date <- format(bd17$SleepDay, format = "%m/%d/%y")
 bd18$Date=as.POSIXct(bd18$Date, format="%m/%d/%Y", tz=Sys.timezone())
 bd18$date <- format(bd18$Date, format = "%m/%d/%y")
 ```
+### 3.2.2) Finding duplicates in databases
+
+As part of the exploration and cleaning process, an important step would always be the search and removal of records with duplicate information. For this purpose, the following function was used:
+
+```{r}
+# Function: Find duplicates
+# Description: Find and print duplicate records in a database
+
+print_duplicates <- function(dataset, name_db) {
+  duplicates <- dataset[duplicated(dataset), ]
+  if (nrow(duplicates) > 0) {
+    print(duplicates)
+  } else {
+    cat(name_db, "does not contain duplicate records!\n")
+  }
+}
+
+# Find duplicate records in bd1
+print_duplicates(bd1, "bd1")
+
+# Find duplicate records in bd6
+print_duplicates(bd6, "bd6")
+
+# Find duplicate records in bd17
+print_duplicates(bd17, "bd17")
+
+# Find duplicate records in bd18
+print_duplicates(bd18, "bd18")
+```
+
+**Comments**: There are three duplicate records in bd17 (**sleepDay**), which are: (**162**) Id: 4388161847 from 2016-05-05, (**224**) Id: 4702921684 from 2016-05-07 and (**381**) Id: 8378563200 from 2016-04-25. **There are no duplicates in the other three databases**.
+
+After reviewing the duplicates, those that appeared in bd17 were deleted using the following code:
+
+```{r}
+# Deleting duplicate records in bd17
+bd17 <- distinct(bd17, .keep_all = TRUE)
+```
+
+Once again, the databases were checked for duplicates.
+
+```{r}
+# Function: Find duplicates
+# Description: Find and print duplicate records in a database
+
+print_duplicates <- function(dataset, name_db) {
+  duplicates <- dataset[duplicated(dataset), ]
+  if (nrow(duplicates) > 0) {
+    print(duplicates)
+  } else {
+    cat(name_db, "does not contain duplicate records!\n")
+  }
+}
+
+# Find duplicate records in bd1
+print_duplicates(bd1, "bd1")
+
+# Find duplicate records in bd6
+print_duplicates(bd6, "bd6")
+
+# Find duplicate records in bd17
+print_duplicates(bd17, "bd17")
+
+# Find duplicate records in bd18
+print_duplicates(bd18, "bd18")
+```
+
+**Comments**: Finally, none of the databases had duplicate records.
+
+### 3.2.3) Examining *bd17 (sleepDay)*
+
+During the databases review, it was noticed that **bd17** (**sleepDay**) had some sleep records that appeared unlikely. There were three individuals with average **TotalMinutesAsleep** data of less than 3 hours. Upon closer examination of these individuals, it was observed that Id = **2320127002** had only one record for the total number of days and with a value of **61 minutes**; Id = **7007744171** had two records (**79** and **58 minutes**) and Id = **4558609924** had five records, one with **171** minutes and another with **123** minutes, while the remaining three had values **less than 120 minutes** (2 hours). The mentioned records are shown below.
+
+Additionally, an individual (Id = **1844505072**) was found with only three sleep records with **TotalMinutesAsleep** values of **644**, **722**, and **590** (10.73, 12.03, and 9.83 hours, respectively). It is noteworthy that the values of **TotalTimeInBed** were exactly **961 minutes** (**16.01 hours**) for those same days. Upon closer examination, it appears that the **first record** was taken **on Friday**, and **the other two**, fifteen days later, on **Saturday** and **Sunday**. Since these are isolated records on a Friday and a weekend, they could be considered valid for those days, but the TotalTimeInBed does not seem very plausible (exactly 16.01 hours in bed for all three days!). The mentioned records are shown below.
+
+```{r}
+# Filtering records in bd17
+bd17_filtered <- bd17 %>% filter(Id %in% c(2320127002, 7007744171, 4558609924, 1844505072))
+
+# Displaying filtered records
+View(bd17_filtered)
+```
+
+**Comments**: Considering the unlikely of certain data displayed earlier, it was decided to declare invalid and, therefore, convert the sleep data to **NA** for Ids **2320127002**, **7007744171**, and **4558609924**. The code for this process is shown below. As for Id = **1844505072**, it was determined to retain this individual's data in the database but being cautious when analyzing it.
+
+```{r}
+# Transforming to NA in bd17
+bd17 <- bd17 %>%
+  mutate(
+    TotalMinutesAsleep = ifelse(Id %in% c(2320127002, 7007744171, 4558609924), NA, TotalMinutesAsleep),
+    TotalTimeInBed = ifelse(Id %in% c(2320127002, 7007744171, 4558609924), NA, TotalTimeInBed)
+  )
+```
+
+### 3.2.4) Unifying and renaming the databases
+
+The unification and renaming would be as follows:
+
+-   bd1 (**dailyActivity**) + bd17 (**sleepDay**) = **activity**
+
+-   To facilitate understanding, bd6 (**hourlyCalories**) and bd18 (**weightLoglnfo**) would be renamed to **calories** and **weight**, respectively; therefore:
+
+    -   bd6 (**hourlyCalories**) = **calories**
+
+    -   bd18 (**weightLoglnfo**) = **weight**
+
+**IMPORTANT**: Before unification and renaming, it's essential to check for matches between the databases regarding the unification variables that would be: **Id** and **date**. The variable named **date** was created in the previous step when date formats were harmonized.
+
+#### 3.2.4.1) Checking matches between databases
+
+It is already known that **bd1** (**dailyActivity**) has **940** records and **33** Ids, while **bd17** (**sleepDay**) has only **413** records and **24** Ids. It is assumed, a priori, that the information from the second will be contained in the first, based on matches by Id and date, and, of course, there will be empty records in **bd1** due to the corresponding information missing in **bd17**.
+
+The following code block was used for verification:
+
+``` r
+# Comparing record matches in bd1 and bd17 based on the Id and date columns
+
+# Find combinations that are in bd1 but not in bd17
+missing1 <- setdiff(bd1[, c("Id", "date")], bd17[, c("Id", "date")])
+
+# Find combinations that are in bd17 but not in bd1
+missing2 <- setdiff(bd17[, c("Id", "date")], bd1[, c("Id", "date")])
+
+# Print missing
+print(missing1)
+print(missing2)
+```
+
+**Comments**: All the records from bd17 are contained in bd1, and there are no records in bd1 that do not appear in bd17. There are 530 records in bd1 that are not in bd17, which, when added to the 410 records in bd17 that remained after removing duplicates, make up the total of 940 records in bd1.
+
+#### 3.2.4.2) Unifying databases
+
+At this point, the databases **bd1** and **bd17** would be ready for their merging using the code that follows, after selecting the variables to work with.
+
+```{r}
+# Unifying databases
+
+# Select specific columns from bd1 and bd17
+bd1_cols <- c("Id", "date", "ActivityDate", "TotalSteps", "TotalDistance", 
+              "VeryActiveDistance", "ModeratelyActiveDistance", "LightActiveDistance", 
+              "SedentaryActiveDistance", "VeryActiveMinutes", "FairlyActiveMinutes", 
+              "LightlyActiveMinutes", "SedentaryMinutes", "Calories")
+bd17_cols <- c("Id", "date", "TotalMinutesAsleep", "TotalTimeInBed")
+
+# Merge bd1 and bd17, selecting specific columns and name it 'activity'
+activity <- merge(bd1[, bd1_cols], bd17[, bd17_cols], by = c("Id", "date"), all.x = TRUE)
+
+```
+
+#### 3.2.4.3) Renaming databases
+
+Finally, **bd6** would be renamed as '**calories**' and **bd18** as '**weight**,' as previously mentioned.
+
+```{r}
+# Renaming databases
+
+# Rename: bd6 (hourlyCalories) = calories
+calories <- bd6
+
+# Rename: bd18 (weightLoglnfo) = weight
+weight <- bd18
+```
+
+# 3.3) Continuing with the exploration and cleaning in the *'activity'* database
+
+During the initial phase of exploration, it was observed that the variable **TotalSteps**, in what is now the **activity** database, had **minimum values** of **zero** (**0**) for a day, which seemed somewhat unusual. It's unusual for someone healthy and with a normal lifestyle to have zero steps in a day, and even more so if it happens on multiple days. Due to all of the above, it was decided to investigate what might be happening with these values. Those **records with zero values** in **TotalSteps** were selected for a **detailed review**.
+
+```{r}
+# Selecting records with a value of zero (0) in TotalSteps
+subset_result <- subset(activity, TotalSteps == 0)
+
+head(subset_result, 10)
+```
+
+A frequency table was created for the **Calories** variable in the same records that appeared with zero values in TotalSteps (**77 records**). This was done because certain values in the Calories variable were observed to repeat with a certain frequency. These values also appeared unusual, especially considering that they belong to the same 77 records.
+
+```{r}
+# Creating a frequency table 
+
+# Select the records with a value of 0 in TotalSteps (77 records)
+activity_0_steps <- subset(activity, TotalSteps == 0)
+
+# Create a frequency table for the Calories variable
+freq_table <- table(activity_0_steps$Calories)
+
+# Display the frequency table on the screen
+freq_table
+```
+
+**Comments**: There are 77 records that have a value of zero in the **TotalSteps variable**, but it is noteworthy that these same records also have zero values for all the other variables, except for **SedentaryMinutes** and **Calories**. Additionally, there are no sleep records for these 77 records. It is also noteworthy that in all of these 77 records, except for four of them, the value of 1440 is repeated (1440 is the total number of minutes in a day). However, the four records with **SedentaryMinutes** not equal to 1440 also have implausible values. Furthermore, the values of the **Calories** variable for these same 77 records do not appear to be valid. There are records with zero calorie values and values that are repeated in more than half of these records (**1347**, eight times; **1688**, nine times; **1841**, nine times; **1980**, thirteen times; **2063**, ten times). Due to the inconsistency of the data for these 77 records, it was decided to consider their values for all variables in the activity database as invalid and therefore declare them as missing values (**NA**). These records were not completely deleted because it is possible that, eventually, other databases could be merged with the activity database, and these same records might have valid values for other variables of interest. In the end, for the purposes of this study, there are no intentions to perform multivariate analysis, and ultimately, even if that were the case, the implementation of a multivariate analysis implies that the variables to be analyzed have complete datasets; otherwise, records with at least one variable with missing values are excluded. Additionally, these records could potentially be valid for univariate or bivariate analyses.
+
+Below is the code to convert assumed invalid data into NA.
+
+```{r}
+# Transforming into NA values
+activity_na <- activity %>%
+  mutate_at(vars(TotalSteps:Calories),
+            ~ifelse(TotalSteps == 0, NA, .))
+```
+
+To check if the transformation to NA values was done correctly, the following code was used:
+
+```{r}
+# Counting and visualizing records with NA values in TotalSteps
+
+# Count NA values in TotalSteps
+sum(is.na(activity_na$TotalSteps))
+
+# Select and visualize the records with NA value in TotalSteps
+head(subset(activity_na, is.na(TotalSteps)), 10)
+```
+
+**Comment**: The count is 77, and all the records have been changed to NA.
+
+A review was conducted again, this time using the **summary()** function, to gain another perspective on the variables in the **activity** database. It should be noted that at this moment, the database is being referred to as **activity_na**.
+
+```{r}
+# Summary statistics for all variables after NA replacements
+summary(activity_na)
+```
+
+**Comment**: The variable **SedentaryMinutes** still remains with values of **1440**. A new revision of these values was carried out. With the code below, the records that have values of 1440 in **SedentaryMinutes** are selected.
+
+```{r}
+# Selecting records with values of 1440 in SedentaryMinutes
+subset(activity_na, SedentaryMinutes == 1440)
+```
+
+**Comments**: There were still seven records with values of **1440** in **SedentaryMinutes**. In these cases, there were data that seemed plausible in **TotalSteps**, **TotalDistance**, and **Calories**, while in the rest of the variables (**VeryActiveDistance, ModeratelyActiveDistance, LightActiveDistance, SedentaryActiveDistance, VeryActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes**), there were zeros. **It was decided to change those zero values to NA**.
+
+Below is the code to convert the **remaining 7 records** with values of 1440 in SedentaryMinutes to **NA**. Temporarily, **activity_na** would be renamed as **activity_last.na**. Later on, it will be referred to as **activity** again.
+
+```{r}
+# Transforming to NA values the remaining 7 records with values of 1440 in SedentaryMinutes
+activity_last.na <- activity_na %>%
+  mutate_at(vars(VeryActiveDistance:SedentaryMinutes),
+            ~ifelse(SedentaryMinutes == 1440, NA, .))
+```
+
+Final review of records changed to **NA**, using **SedentaryMinutes** as a reference, although all variables from **VeryActiveDistance** to **SedentaryMinutes** end up with 84 NA records.
+
+```{r}
+# Selecting records with NA values in SedentaryMinutes
+head(subset(activity_last.na, is.na(SedentaryMinutes)), 10)
+```
+
+```{r}
+# Summary statistics for all variables after the latest NA replacements
+summary(activity_last.na)
+```
+
+**Comments**: There were still some values that could be reviewed individually, especially in **SedentaryMinutes**, but it was preferred to conduct outlier analysis and make replacements as needed based on the analysis. Continuing to remove records without criteria beyond those previously used could, ultimately, introduce greater bias. For example, records (**412**) 4319703577 from 05/12/16 and (**265**) 2347167796 from 04/29/16 have values close to zero (0) in all variables except for **Calories** and **sleep-related variables**. On the other extreme, there are records (**101**) 1844505072 from 04/20/16, (**108**) 1844505072 from 04/27/16, (**676**) 6775888955 from 05/03/16, (**117**) 1844505072 from 05/06/16, (**352**) 4020332650 from 04/17/16, (**353**) 4020332650 from 04/18/16, and (**349**) 4020332650 from 04/14/16 with values in **SedentaryMinutes** close to **1440**, such as **1439** and **1438**, and values close to zero (0) in the rest of the variables as well. These cases have less homogeneous characteristics than the others to be eliminated, and in fact, they are very likely to be outliers; but as mentioned earlier, there wouldn't be a consistent criterion for all. That's why outlier analysis was preferred to see what happens, if any of them can be replaced by the mean or median. Also, there wouldn't be many values to replace with the mean or median, which minimizes the bias introduced.
+
+Finally, the database name is reverted back to **activity**, that is: **activity** -\> **activity_na** -\> **activity_last.na** -\> **activity**.
+
+```{r}
+# Saving 'activity_last.na' as 'activity'
+activity <- activity_last.na
+```
+
+# 3.4) Continuing with the exploration and cleaning in the *'calories'* database.
+
+In order to ensure consistency with the treatment of anomalous data given to the **activity** database, the same treatment was applied to the **calories** database as needed. What was done was to transform the same records in the **Calories** variable of the **calories** database to **NA** values as in the **Calories** variable of the **activity** database. It was done taking the **Id** and **date** columns of the **activity** database as reference.
+
+```{r}
+# Replacing with NA values in the 'Calories' variable of the 'calories' database
+
+# Identify NA values in the 'Calories' variable of the 'activity' database."
+na_calories <- activity[is.na(activity$Calories), c('Id', 'date')]
+
+# Combining data to obtain NA values for Calories in 'activity'
+na_calories <- merge(na_calories, calories, by = c('Id', 'date'), all.x = TRUE)
+
+# Replace values of the 'Calories' variable in the 'calories' database with corresponding NA
+calories[calories$Id %in% na_calories$Id & calories$date %in% na_calories$date, 'Calories'] <- NA
+
+# Display NA values in the 'Calories' variable of the 'calories' database
+head(calories[is.na(calories$Calories), ], 10)
+```
+
+**Comments**: The previous block modified **9181** records out of **22099** in the **Calories** variable in the **calories** database.
+
+# 3.5) Outliers analysis
+
+***Source consulted to address the outliers analysis***:
+
+-   *Kwak SK, Kim JH. Statistical data preparation: management of missing values and outliers. Korean J Anesthesiol. 2017 Aug;70(4):407-411. doi: 10.4097/kjae.2017.70.4.407. Epub 2017 Jul 27. PMID: 28794835; PMCID: PMC5548942.*
+-   *Statologos. Cómo eliminar valores atípicos en R. [Internet] [cited 2023 Sept 23]. Availablefrom: <https://statologos.com/remove-outliers-r/>*
+
+The next step was to select the variables of interest to examine possible outliers, and take appropriate actions if necessary. Initially, this process was carried out on the **activity** dataset, and later on the **calories** dataset. In contrast, the **weight** dataset remained unchanged as only the information related to **weight** and **BMI** was extracted as originally recorded. In a preliminary review of the **weight** dataset, it was noted that, apart from having a limited number of values overall, these values exhibited a considerable degree of consistency across individuals.
+
+Regarding the identification of potential outliers in the **weight** dataset, a couple of highly atypical data points were identified in the **Weight** and **BMI** variables, and these were associated with a single individual. Further considerations regarding this individual will be discussed later in the analysis.
+
+#### ***The strategy followed for this study was as follows***:
+
+Any outlier values that fell outside both the mild and severe boundaries were replaced. If they were below the lower limit, they were substituted with the mean; if they were above, they were replaced with the median.
+
+The following variables from the **activity** dataset were assessed:
+
+> "TotalSteps", "TotalDistance", "VeryActiveDistance", "ModeratelyActiveDistance", "LightActiveDistance", "SedentaryActiveDistance", "VeryActiveMinutes", "FairlyActiveMinutes", "LightlyActiveMinutes", "SedentaryMinutes", "Calories", "TotalMinutesAsleep" y "TotalTimeInBed.
+
+From the **calories** dataset, only one variable was evaluated.
+
+> “Calories”
+
+#### ***Overview of the proposed outlier analysis:***:
+
+1.  Three plots were generated: a density plot, a histogram, and a boxplot, to visually assess the distribution of the variable of interest. Additionally, the Shapiro-Wilk normality test was conducted.
+2.  A boxplot was created to display the distribution of the variable of interest for all individuals combined.
+3.  A table was constructed, providing information such as Q1, Q2, IQR, mild and severe boundaries, count of values outside the boundaries, mean, median, maximum, and minimum values for each individual, categorized by the variable of interest.
+4.  Two tables and a more concise list were generated, focusing only on records with outlier values for the variable of interest.
+5.  A boxplot was produced exclusively for individuals with outliers.
+6.  Variables were created to store the outlier values for each individual, which would be used for replacements.
+7.  Outlier replacements were executed.
+8.  A comparative boxplot was created for each individual, displaying both the data before and after the replacements in a single graph.
+9.  The previous step was repeated, but this time, the boxplots represented the entire dataset for the variable of interest.
+
+The outlier analysis and replacements for each variable were conducted in separate files for each variable. Independent databases were generated from the original databases. These new databases included all the columns from the original database, with an additional column named with '**.R**' as part of the variable name, representing the replacements for the specific variable being analyzed. For instance, when working with a variable like **"TotalSteps"**, a new column named **"TotalSteps.R"** containing the replaced values was added to the activity database. The next step involved consolidating all these databases into a single database, which included only the columns "**Id**," "**date**", and the '**.R**' **columns** representing the replacements. Later on, the '**.R**' part of the variable names was removed to match the original column names.
+
+For the purpose of this work, and due to its length, the individual processes for each of the databases and variables of interest will not be displayed. Instead, the databases that have already been cleaned and prepared for further processing and analysis will be loaded. Therefore, in the following section, the databases that are ready to proceed with the work will be loaded.
+
+# 3.6) Loading clean datasets
+
+The databases left clean after the outlier analysis were loaded next to proceed with their further processing and analysis. In the **weight** database, no outlier analysis was conducted; therefore, for the analyses, it was maintained in the system just as it was originally loaded.
+
+```{r}
+# Loading clean datasets
+activity <- read.csv("/kaggle/input/cleaned-dataset/activity_cleaned.csv")
+
+calories <- read.csv("/kaggle/input/cleaned-dataset/calories_cleaned.csv")
+```
+
+```{r}
+# Loading clean datasets
+activity <- read.csv("D:/Mis Cosas/Kaggle/PROFESSIONAL CERTIFICATE. Google Data Analytics/Bases de datos limpias/activity_cleaned.csv")
+
+calories <- read.csv("D:/Mis Cosas/Kaggle/PROFESSIONAL CERTIFICATE. Google Data Analytics/Bases de datos limpias/calories_cleaned.csv")
+
+weight <- read.csv("D:/Mis Cosas/Kaggle/PROFESSIONAL CERTIFICATE. Google Data Analytics/Bases de datos limpias/weightLogInfo_merged.csv")
+```
+
+# 3.7) Creating new variables
+
+During the analysis process, there was an interest in evaluating individuals' calorie expenditure throughout the day and on different days of the week as an indirect measure of smart device usage patterns. To achieve this, the '**date**' variable was recategorized in both the '**activity**' and '**calories**' databases. A new column was created to reflect **the day of the week**, and additionally, another column was added to classify the day as a **weekday** or **weekend**. The code to perform these tasks is provided below.
+
+
+```{r}
+# Function: Recode the 'date' variable
+# Description: Recode the 'date' variable into two new variables in 'activity' and 'calories' databases
+
+Sys.setlocale("LC_TIME", "en_US.UTF-8")  # o "en_US.UTF-8", según el sistema
+
+process_database <- function(data) {
+  # Transform format of the date column
+  data$date_english <- as.Date(data$date, format = "%m/%d/%y")
+  
+  # Create a new variable indicating the day of the week in English
+  data$day_of_the_week <- weekdays(data$date_english, abbreviate = FALSE)
+  
+  # Create a new variable to categorize each day as a weekend or weekday
+  data$weekday_weekend <- ifelse(data$day_of_the_week %in% c("Saturday", "Sunday"), "weekend", "weekday")
+  
+  # Return the processed database
+  return(data)
+}
+
+# Process the 'activity' database
+activity <- process_database(activity)
+
+# Process the 'calories' database
+calories <- process_database(calories)
+
+```
+
+# IV) **Analysis**
+
+To conduct the analyses, it was necessary to install and load an additional set of packages.
+
+```r
+# Installing 'factoextra' package and dependencies (Extract and visualize the results of multivariate data
+# Also installing the dependencies ‘car’, ‘rstatix’, ‘FactoMineR’, ‘ggpubr’
+
+# Install 'pbkrtest'
+install.packages("lme4") # Fit linear and generalized linear mixed-effects models
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/pbkrtest/pbkrtest_0.4-4.tar.gz" 
+install.packages(packageurl, repos=NULL, type="source")
+
+# Install 'emmeans'
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/emmeans/emmeans_1.7.0.tar.gz" # Obtain estimated marginal means (EMMs) 
+                                                                                          # for many linear, generalized linear, and mixed models
+install.packages(packageurl, repos=NULL, type="source")
+
+# Install 'factoextra'
+install.packages("factoextra")
+
+# Load 'factoextra'
+library(factoextra)   
+
+# library(corrplot) # Provides a visual exploratory tool on correlation matrix 
+# library(cluster) # Provides methods for cluster analysis
+# library(Hmisc) # Contains many functions useful for data analysis, high-level graphics and utility operations
+# library(stats) # The R Stats Package
+# library(FactoMineR) # Multivariate exploratory data Analysis and data Mining with R
+# library(factoextra) # Extract and visualize the results of multivariate data
+# library(tidyverse) # Offers a comprehensive set of tools for working with data
+# library(lubridate) # Functions for working with date-times and time-spans
+# library(tidyr) # Facilitates data organization and cleaning for improved data handling
+# library(dplyr) # Simplifies data frame operations with efficient filtering, selecting, sorting, and summarizing
+# library(conflicted) # Resolves conflicts between packages to ensure smooth package interactions
+# conflicted::conflicts_prefer(dplyr::filter) # Specifies winners for conflicts when resolving conflicting functions
+# library(ggplot2) # Generates visually appealing and customizable data visualizations
+# library(gridExtra) # Offers functions for arranging multiple grid-based plots and creating tables
+# library(cowplot) # Provides tools for combining and arranging plots
+# library(patchwork) # Allows for advanced plot composition
+```
+
+```r
+# Installing "acepack" (a dependencie of 'Hmisc')
+install.packages("acepack") 
+packageurl <- "https://cran.r-project.org/src/contrib/acepack_1.4.2.tar.gz" 
+install.packages(packageurl, repos=NULL, type="source")
+```
+
+```{r}
+# Loading packages for analysis
+library(corrplot) # Provides a visual exploratory tool on correlation matrix 
+library(cluster) # Provides methods for cluster analysis
+library(stats) # The R Stats Package
+library(FactoMineR) # Multivariate exploratory data Analysis and data Mining with R
+library(factoextra) # Extract and visualize the results of multivariate data
+library(lme4) # Fit linear and generalized linear mixed-effects models
+library(emmeans) # Obtain estimated marginal means (EMMs) for many linear, generalized linear, and mixed models
+
+# Loading packages dependencies for Hmisc
+# library(ggplot2)
+library(survival) # Contains the core survival analysis routines
+library(acepack) # Provides two nonparametric methods for selecting transformations in multiple regression
+library(lattice) # Robust high-level tool for diverse multivariate data visualization
+library(latticeExtra) # Introduces new high-level functions, methods, and utilities to enhance the lattice package
+```
+
+```r
+# Hmisc: Contains many functions useful for data analysis, high-level graphics and utility operations
+# Procedure for installing the 'Hmisc' package
+
+# Install or load these packages first, then install 'Hmisc'
+install.packages("ggplot2")
+install.packages('acepack')
+install.packages("lattice")
+install.packages("latticeExtra")
+library(devtools); install_github("therneau/survival")
+
+# Install package 'Hmisc'
+install.packages('https://cran.r-project.org/src/contrib/Archive/Hmisc/Hmisc_3.17-3.tar.gz', repos=NULL)
+
+# Load package
+library(ggplot2)
+library(survival)
+library(acepack)
+library(lattice)
+library(latticeExtra)
+
+# Load package 'Hmisc'
+library(Hmisc)
+```
+
+```{r}
+# Resolving conflicts between packages
+# Specifies winners for conflicts when resolving conflicting functions
+
+conflicted::conflicts_prefer(dplyr::filter)
+conflicted::conflicts_prefer(dplyr::summarize)
+conflicted::conflicts_prefer(plotly::mutate)
+conflicted::conflicts_prefer(base::sum)
+conflicted::conflicts_prefer(base::mean)
+conflicted::conflicts_prefer(base::max)
+conflicted::conflicts_prefer(stats::cor)
+```
+
+# 4.1) Paterns of wearable device usage
+
+The initial phase of the analyses was focused on assessing potential general patterns of wearable device usage. ***Figure 1*** displays the frequency at which individuals used these devices. The study period was arbitrarily divided into three stages (**10 days or less**, **11-20 days**, **more than 20 days**). **More than 90%** of the subjects had recorded data for **more than 20 days**, while **64%** had records for **every day** of the evaluation period. The few individuals who used the devices for less than 20 days did not exhibit a clear pattern that could provide insights into the reasons for their lower usage. An attempt was made to explore a possible explanation by considering that those who use their devices less frequently might be less physically active, but the analyses did not support this trend. The levels of physical activity, as measured by calorie expenditure, for individuals with lower device usage were quite similar to those of the rest, and thus, this **reduced device usage could not be attributed to these individuals being less active**. A more detailed exploration of other potential explanations is beyond the scope of this study.
+
+```{r}
+# Count the total number of days per Id according to ActivityDate variable 
+usage_smart_devices <- aggregate(ActivityDate ~ Id, data = activity, FUN = function(x) length(unique(as.Date(x))))
+
+# Change the name of the "ActivityDate" column to "DaysOfUsage"
+colnames(usage_smart_devices)[colnames(usage_smart_devices) == "ActivityDate"] <- "DaysOfUsage"
+
+# Recode the DaysOfUsage variable (three categories)
+usage_smart_devices$activity_category <- cut(usage_smart_devices$DaysOfUsage, 
+                                    breaks = c(-Inf, 10, 20, Inf), 
+                                    labels = c("10 days or less", "11-20 days", "more than 20 days"), 
+                                    right = FALSE)
+
+# Calculate the average of the "Calories" variable for each "Id" and store it in usage_smart_devices
+usage_smart_devices <- usage_smart_devices %>% 
+                                 mutate(aggregate(Calories ~ Id, data = activity, FUN = mean))
+
+# Count the frequency and calculate the percentage for each category
+category_counts <- table(usage_smart_devices$activity_category)
+category_percentages <- prop.table(category_counts) * 100
+
+# Bar plot
+barplot(category_counts, main = "Figure 1. Frequency of Usage of Smart Devices", 
+        xlab = "Days of usage", 
+        ylab = "Frequency", 
+        ylim = c(0, max(category_counts) * 1.2), 
+        col = c("#cccccc", "#227ad2", "#164f86"))
+
+# Add percentage labels to the plot
+text(barplot(category_counts, plot = FALSE), category_counts, labels = paste0(round(category_percentages, 1), "%"), pos = 3)
+```
+
+#### The code below performs the comparison of caloric expenditure between individuals who used their devices for more than 20 days and those who used them less (Wilcoxon test). The results of this test support the homogeneity in terms of energy expenditure in both groups.
+
+```{r}
+# Recode the DaysOfUsage variable (two categories)
+usage_smart_devices$activity_category <- cut(usage_smart_devices$DaysOfUsage, 
+                                    breaks = c(-Inf, 20, Inf), 
+                                    labels = c("20 days or less", "More than 20 days"), 
+                                    right = FALSE)
+                               
+# Calculate the average of the "Calories" variable for each "Id" and store it in usage_smart_devices
+usage_smart_devices <- usage_smart_devices %>% 
+                                 mutate(aggregate(Calories ~ Id, data = activity, FUN = mean))
+# Wilcoxon rank sum exact test
+wilcox.test(Calories ~ activity_category, data = usage_smart_devices)
+```
+
+In ***Figure 2***, the distribution of individuals' calorie expenditure throughout the day (**any day, weekdays, and weekends**) is displayed. Additionally, a comparison of calorie expenditure between **weekdays** and **weekends** is represented.
+
+```{r}
+# Create two data frames: weekday and weekend
+df_weekday <- calories[calories$weekday_weekend == "weekday",]
+df_weekend <- calories[calories$weekday_weekend == "weekend",]
+```
+
+```{r}
+
+# Function to create point graphic
+create_point_plot <- function(data, x_var, y_var, title, color) {
+  ggplot(data, aes(x = !!sym(x_var), y = !!sym(y_var), na.rm = TRUE)) +
+    ggtitle(title) +
+    geom_point(color = color, na.rm = TRUE) +
+    theme_minimal_hgrid(12) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    xlab("Time")
+}
+
+# Define colors by category
+colors <- c("weekday" = "#227ad2",
+             "weekend" = "#164f86")
+
+# Configure the density and boxplot graphics
+
+# Getting legend of Density plot
+legend_p4 <- ggplot(activity, aes(x = Calories, fill = weekday_weekend)) +
+  geom_density(color = "white", na.rm = TRUE) + 
+  scale_fill_manual(values = colors) +
+  guides(fill = guide_legend(title = bquote(bold("Moment of the week")), 
+                             direction = "horizontal", 
+                             title.position = "top")) +
+  theme(legend.position.inside = c(0.4, 0.35), 
+        legend.key.size = unit(1.1, "cm"))    
+
+# Obtain legends from p4
+legend_p4 <- cowplot::get_legend(legend_p4)
+
+# Density plot
+p4 <- ggplot(activity, aes(x = Calories, fill = weekday_weekend)) +
+  geom_density(colour = "gray", na.rm = TRUE) + 
+  scale_fill_manual(values = colors) +
+  guides(fill = guide_legend(title = "Moment of the week")) + 
+  labs(title = "Daily_Weekday and weekend comparisson", y = "Density") + 
+  theme_minimal_hgrid(12) + 
+  theme(legend.position = "none", 
+        axis.text.y = element_blank())
+
+# Boxplot
+p5 <- ggplot(activity, aes(x = weekday_weekend, y = Calories, fill = weekday_weekend)) + 
+  stat_boxplot(geom = "errorbar", lwd = 0.7, width = 0.25, na.rm = TRUE) +
+  geom_boxplot(color = "transparent", notch = TRUE, width = 0.7, na.rm = TRUE) +
+  scale_fill_manual(values = colors) +
+  labs(title = "Daily_Weekday and weekend comparisson") + 
+  theme_minimal_hgrid(12) +
+  theme(legend.position = "none", 
+        axis.text.x = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.title.y = element_blank()) + 
+  coord_flip() + 
+  stat_summary(na.rm = TRUE, 
+                        geom = "crossbar", 
+                        lwd = 1.5, fatten=0, 
+                        color="white", 
+                        position = position_dodge(0.8), 
+                        fun.data = function(x){c(y=median(x), 
+                                                 ymin=median(x), 
+                                                 ymax=median(x))})
+
+# Create hourly caloric expenditure plots by day type
+p1 <- create_point_plot(calories, "time", "Calories", "Hourly_Any day", "#cccccc")
+p2 <- create_point_plot(df_weekday, "time", "Calories", "Hourly_Weekday", "#227ad2")
+p3 <- create_point_plot(df_weekend, "time", "Calories", "Hourly_Weekend", "#164f86")
+
+# Arrange the elements of the figure according to the chosen layout
+# Custom layout (# is an empty area)
+design <- "
+  123
+  456
+"
+# Combine the plots with a custom layout
+p1 + p2 + p3 + p4 + p5 + legend_p4 +
+  plot_layout(design = design) + 
+  
+  # Add titles, subtitles, and caption to the figure
+  plot_annotation(
+    title = "Figure 2. Calory Expenditure Throughout the Day and the Week",
+    subtitle = "Data frame: 'calories' and 'activity'",
+    caption = "Source: Fitbit's physical activity tracking records") + 
+  
+  # Label for every graphic
+  plot_annotation(tag_levels = "A"
+)
+
+```
+
+![image.png](Figuras/Fig_2.png)!
+
+The results previously shown reflect that individuals, on average, have fairly similar physical activity patterns throughout the week, regardless of the day of the week. Caloric expenditure during the week does not significantly differ from that which occurs during the weekend. There may be a slight difference in terms of timing; for instance, in **Graphic B** (**weekdays**), there is an increase in caloric expenditure around **5:00 AM** that extends until around **10:00 PM**, with two peaks between **5:00 AM** and **1:00 PM**, and another one from **1:00 PM** to **10:00 PM**. However, in **Graphic C** (**weekend**), a shift in timing can be observed, but only for the onset of the increase in caloric expenditure, which typically occurs around **8:00 AM**. It could be speculated that the earlier start during the week is due to people going to work and therefore adjusting their exercise schedules, while on the weekend, there's an opportunity to rest a bit longer in the morning before getting into their workout routine. Nonetheless, and aside from these minimal timing differences, calorie expenditure is similar in both periods. The overlapping notches in the boxes of **Graphic E** (**Boxplot**) indicate that there are no significant differences between the medians of caloric expenditure on the weekend and during the weekdays.
+
+# 4.2) Analysis of anthropometric variables
+
+In this section of the study, analyses were conducted using the **weight** database. However, it should be noted that, in line with the study's objectives, limited information could be extracted, mainly comprising descriptive statistics of the '**WeightKg**' and '**BMI**' variables, along with a review of the data supplied by the '**IsManualReport**' variable.
+
+In ***Figure 3*** below, histograms, density plots, and boxplots for the '**WeightKg**' and '**BMI**' variables are shown. Subsequently, the respective statistical summary of these same variables are presented. It is important to note the presence of an individual with extremely high values in both weight and body mass index ($134 kg$ and $48 kg/m^2$), which skews the distribution of the variable significantly to the right. For the purposes of this exercise and considering that the variables are being described just as they were collected, no action was taken with this case. *However, it should be noted that if, eventually, the information were considered as valid for making any kind of inference, definite actions would have to be taken with these records that are so far from the majority of the group. It would likely be necessary to exclude this individual from the analyses.*
+
+```{r}
+# Create a figure combining histogram, density plot, box plot
+
+# Function: Generate histogram, density, and boxplot graphs
+# Description: Create a figure with the three types of charts for each of the variables
+
+generate_plots <- function(data, variable, x_limits, tick_interval, x_title) {
+  
+  # Histogram
+  hist(data[[variable]], 
+       border = "white", 
+       col = "#CCCCCC",
+       ann = FALSE,
+       axes = FALSE)
+  
+  # Density
+  par(new = TRUE, bty = "n")
+  plot(density(data[[variable]]), 
+       col = "red", 
+       lwd = 2, 
+       lty = 2,
+       ann = FALSE,
+       axes = FALSE)
+  
+  # Box plot
+  par(new = TRUE, bty = "n")
+  boxplot(data[[variable]], 
+          boxcol = "#164f86",
+          col = "#164f86",
+          medcol = "white",
+          medlwd = 4, 
+          horizontal = TRUE, 
+          outcol = "red",
+          outpch = 20,
+          whisklwd = 2,
+          cex = 1.5,
+          ann = FALSE,
+          axes = FALSE)
+  
+  # Customize the axes
+  xlim <- x_limits # Set x-axis limits
+  
+  # Set x-axis tick marks and labels
+  axis(1, at = seq(xlim[1], xlim[2], 
+                   by = tick_interval),
+       labels = round(seq(xlim[1], 
+                          xlim[2], 
+                          by = tick_interval)),
+       col = "lightgray",
+       tck = -0.01)
+  
+  # Set y-axis line and ticks
+  axis(2, lwd = 1, lty = 1, col = "lightgray", tck = -0.01, labels = FALSE)
+  
+  # Add label to the maximum value
+  max_value <- round(max(data[[variable]]))
+  text(x = max_value, y = 1, labels = max_value, 
+       pos = 2,
+       offset = 1,
+       col = "red")
+  
+  # X-axis title
+  if (variable == "BMI") {
+    x_title <- expression(BMI~(kg/m^2))
+  }
+  title(xlab = x_title)
+}
+
+# Configure the figure layout with two columns
+par(mfrow = c(1, 2))
+
+# Call the function to generate WeightKg graphs on the left side
+generate_plots(weight, "WeightKg", c(50, 140), 15, "Weight (kg)")
+
+# Call the function to generate BMI graphs on the right side
+generate_plots(weight, "BMI", c(20, 50), 5, expression(BMI~(kg/m^2)))
+
+# Title
+main_title <- "Figure 3. Histograms, Density plots and Boxplots of Variables 'WeightKg' and 'BMI'"
+# Subtitle
+subtitle <- "Data frame: 'weight'"
+# Caption
+caption <- "Source: Fitbit's physical activity tracking records"
+
+# Add the title, subtitle, and caption
+par(mfcol = c(1,1))
+mtext(main_title, side = 3, line = 2, cex = 1.2, font = 2, adj = 0)
+mtext(subtitle, side = 3, line = 1, cex = 1, font = 1, adj = 0)
+mtext(caption, side = 1, line = 4, cex = 0.8, font = 1, adj = 1)
+```
+
+![image.png](attachment:26dc75b7-4392-4864-aae3-069fa11ec8cd.png)
+
+```{r}
+# Summary statistics for 'WeightKg' variable
+summary(weight$WeightKg)
+```
+
+```{r}
+# Summary statistics for 'BMI' variable
+summary(weight$BMI)
+```
+
+***Figure 4*** shows the distribution of **IsManualReport** variable's data (**TRUE** or **FALSE**) in percentages. In the absence of additional information, it was assumed *a priori*, based on context, that the **IsManualReport** variable likely records whether the information collected in the **weight** database was entered manually or not. If that is the case, and assuming further that **TRUE** indicates manual input while **FALSE** signifies automatic recording by a device, it can be observed in Figure 4 that the majority of individuals (more than 60%) manually entered the data. *A recommendation for Bellabeat in this regard could be the inclusion of a scale in their product offerings, preferably one that also measures electrical bioimpedance and be connected to other recording devices and the app. With such a scale, weight and overall body composition data can be collected more reliably without the need for manual entry.*
+
+```{r}
+# Create a graphic bar for 'IsManualReport'
+ggplot(data=weight, 
+       aes(x=IsManualReport, 
+           y=after_stat(count)/sum(after_stat(count)), 
+           fill = as.numeric(after_stat(count)/sum(after_stat(count))))) +
+  geom_bar(width = 0.40, na.rm = TRUE) + 
+  scale_y_continuous(labels = function(x) paste0(x * 100)) +
+  labs(title = "Figure 4. Bar Chart of IsManualReport",
+       y = "Percent",
+       subtitle = "Data frame: 'weight'",
+                  caption = "Source: Fitbit's physical activity tracking records") + 
+  scale_fill_gradient(low = "#227ad2", high = "#164f86") +
+  guides(fill = guide_legend(title = NULL)) +
+  theme_minimal_hgrid(12) + 
+  theme(axis.text.x = element_text(size = 12))
+```
+
+# 4.3) Physical activity levels
+
+***Sources consulted to assess levels of physical activity***: \* *World Health Organization. Global action plan on physical activity 2018-2030: more active people for a healthier world. [Internet] [updated 2018 Jun 1; cited 2023 Sept 23]. Availablefrom: <https://www.who.int/publications/i/item/9789241514187>* \* *World Health Organization. WHO guidelines on physical activity and sedentary behaviour: at a glance. [Internet] [updated 2020 Nov 25; cited 2023 Sept 23]. Availablefrom: <https://www.who.int/publications/i/item/9789240014886>*
+
+Another aspect that emerged as of interest to address was the **physical activity recommendations** set forth by the **World Health Organization** (**WHO**) to promote and maintain population health, as well as the adherence of the study participants to these recommendations. In this regard, the WHO suggests that **adults aged 18 to 65** should accumulate a minimum of **150 to 300 minutes of moderate-intensity aerobic** physical activity throughout the week, or a minimum of **75 to 150 minutes of vigorous-intensity aerobic** physical activity, or an **equivalent combination** of moderate and vigorous activities, in order to achieve noticeable health benefits. Below, in ***Figure 5***, it can be observed that **less than 40%** of individuals **meet the goals outlined by the WHO**. *Bellabeat could, in this regard, monitor compliance with WHO recommendations regarding the quantity and intensity of physical activity required to maintain or improve the health status of adults through its wearable devices and mobile application, and provide motivating messages to encourage users to achieve these objectives.*
+
+**Comments**: To create Figure 4, some transformations were necessary on the information from the 'activity' database. The transformations and the lines to create the figure are shown in the following code block.
+
+```{r}
+# To prevent a warning message generated by 'dplyr' from appearing, which can be ignored
+options(dplyr.summarise.inform = FALSE)
+
+# Remove rows with NA values in VeryActiveMinutes and FairlyActiveMinutes
+activity_copy <- activity[complete.cases(activity$VeryActiveMinutes, activity$FairlyActiveMinutes), ]
+
+# Group by Id and week, and calculate the sum of VeryActiveMinutes and FairlyActiveMinutes
+weekly_totals <- activity_copy %>%
+  group_by(Id, format(date_english, "%Y-%W")) %>%
+  summarize(Weekly_VeryActiveMinutes = sum(VeryActiveMinutes),
+            Weekly_FairlyActiveMinutes = sum(FairlyActiveMinutes), na.rm = TRUE)
+
+# Group by Id and calculate the mean of VeryActiveMinutes and FairlyActiveMinutes
+weekly_averages <- weekly_totals %>%
+  group_by(Id) %>%
+  summarize(Weekly_VeryActiveMinutes = mean(Weekly_VeryActiveMinutes),
+            Weekly_FairlyActiveMinutes = mean(Weekly_FairlyActiveMinutes), na.rm = TRUE) %>%
+  mutate(across(c(Weekly_VeryActiveMinutes, Weekly_FairlyActiveMinutes), round))
+
+# # Assign weekly_averages to the variable weekly_activity
+weekly_activity <- weekly_averages
+
+# Create column "WHO_goals" based on WHO criteria
+weekly_activity$WHO_goals <- ifelse(weekly_activity$Weekly_FairlyActiveMinutes >= 150 | weekly_activity$Weekly_VeryActiveMinutes >= 75 |
+                                      (weekly_activity$Weekly_FairlyActiveMinutes >= 150 & weekly_activity$Weekly_VeryActiveMinutes >= 75),
+                                    "YES", "NO")
+
+# Create a graphic bar for WHO_goals
+ggplot(data = weekly_activity, aes(x = WHO_goals, y = after_stat(count) / sum(after_stat(count)), fill = as.numeric(after_stat(count) / sum(after_stat(count))))) +
+  geom_bar(width = 0.40, na.rm = TRUE) +
+  scale_y_continuous(labels = function(x) paste0(x * 100)) +
+  labs(title = "Figure 5. Adherence to WHO Physical Activity Recommendations",
+       y = "Percent",
+       subtitle = "Data frame: 'activity'",
+       caption = "Source: Fitbit's physical activity tracking records") +
+  scale_fill_gradient(low = "#227ad2", high = "#164f86") +
+  guides(fill = guide_legend(title = NULL)) +
+  theme_minimal_hgrid(12) +
+  theme(axis.text.x = element_text(size = 12)) +
+  xlab("WHO goals adherence")
+
+# Restore warning message display options with 'dplyr'
+options(dplyr.summarise.inform = FALSE) 
+```
+
+# 4.4) Sleep duration and efficiency
+
+***Sources consulted for the Sleep Analysis***: \* *Consensus Conference Panel; Watson NF, Badr MS, Belenky G, Bliwise DL, Buxton OM, Buysse D, Dinges DF, Gangwisch J, Grandner MA, Kushida C, Malhotra RK, Martin JL, Patel SR, Quan SF, Tasali E; Non-Participating Observers; Twery M, Croft JB, Maher E; American Academy of Sleep Medicine Staff; Barrett JA, Thomas SM, Heald JL. Recommended Amount of Sleep for a Healthy Adult: A Joint Consensus Statement of the American Academy of Sleep Medicine and Sleep Research Society. J Clin Sleep Med. 2015 Jun 15;11(6):591-2. doi: 10.5664/jcsm.4758. PMID: 25979105; PMCID: PMC4442216. URL: <https://pubmed.ncbi.nlm.nih.gov/25979105/>* \* *Kirsch, D. Stages and architecture of normal sleep. In S. M. Harding (Ed.). UpToDate., [Internet] [updated 2022 Sep 12; cited 2023 Sept 23] Availablefrom: <https://www.uptodate.com/contents/stages-and-architecture-of-normal-sleep>* \* *PSISE, Psise: Servicio de Psicología Clínica del Desarrollo. Unidad de Observación y Diagnóstico Funcional. El sueño: fases, patrones y eficiencia. [Internet] [cited 2023 Sept 23] Availablefrom: <https://psisemadrid.org/el-sueno-fases-patrones-y-eficiencia/#>:\~:text=La%20eficiencia%20del%20sueño,pasado%20en%20la%20cama%20*100. *Reed DL, Sacco WP. Measuring sleep efficiency: what should the denominator be? J Clin Sleep Med 2016;12(2):263–266.*
+
+Sleep, both in terms of its duration and its quality, is an aspect of an individual's daily life that should be given special attention due to its influences on various neuroendocrine, cardiovascular, respiratory, gastrointestinal, among other processes, and its broad repercussions on quality of life, daily performance, behavior, and emotional stability. In this regard, the *Joint Consensus Statement of the American Academy of Sleep Medicine and Sleep Research Society* recommends that adults over the age of 18 should sleep an average of seven hours each day. Sleeping less than seven hours in a 24-hour period would not be healthy. The same *Joint Consensus Statement* also acknowledges that there is insufficient evidence regarding the health risks of regularly sleeping more than nine hours, unless one is a young individual, someone who needs to recover from prolonged sleep debt, or individuals with a debilitating illness. For the purposes of this study, it was considered that **sleeping** an average of between **seven and eight hours per day** would be **adequate**, while any time **below seven hours** or **nine hours or more** would be **inadequate**.
+
+The sleep efficiency, on the other hand, as an estimate of sleep quality, is calculated based on the time spent asleep and the time a person spends in bed:
+
+> *SLEEP EFFICIENCY = time asleep / time spent in bed* 100\* (Expressed as a percentage (%))
+
+Lower sleep efficiency is associated with longer sleep patterns and longer sleep latency, meaning that the longer it takes a person to fall asleep, the less efficient their sleep is. For the purposes of this study, sleep efficiency of **85% or higher** was considered as **adequate**.
+
+For the analysis of **sleep-related data**, it was necessary to perform some **transformations** on the **activity database**. These transformations are shown below.
+
+The first step was to convert sleep values from minutes to hours and store these values in two new variables in the *activity* database.
+
+```{r}
+# Calculate the TotalHoursAsleep variable from TotalMinutesAsleep
+activity$TotalHoursAsleep <- round(activity$TotalMinutesAsleep / 60, 2)
+
+# Calculate the TotalTimeInBed_Hours variable from TotalTimeInBed
+activity$TotalTimeInBed_Hours <- round(activity$TotalTimeInBed / 60, 2)
+```
+
+Next, all NA values in the sleep variables were discarded, medians of these variables were calculated for each Id, the sleep efficiency variable was calculated, and finally, the sleep duration and sleep efficiency variables were recoded according to the criteria mentioned earlier.
+
+```{r}
+# Remove rows with NA values in TotalHoursAsleep and TotalTimeInBed_Hours
+activity_copy <- activity[complete.cases(activity$TotalHoursAsleep) & complete.cases(activity$TotalTimeInBed_Hours), ]
+
+# Group by Id and calculate the median of TotalHoursAsleep and TotalTimeInBed_Hours
+median_sleep_data <- activity_copy %>%
+  group_by(Id) %>%
+  summarize(
+      MedianHoursAsleep = median(TotalHoursAsleep), 
+      MedianTimeInBed = median(TotalTimeInBed_Hours)
+  )
+
+# Calculate Sleep_efficiency variable
+median_sleep_data$Sleep_efficiency <- round((median_sleep_data$MedianHoursAsleep / median_sleep_data$MedianTimeInBed) * 100, 2)
+
+# Categorize the data based on TotalHoursAsleep and Sleep_efficiency
+median_sleep_data <- median_sleep_data %>%
+  mutate(
+    Sleep_duration_recod = case_when(
+      MedianHoursAsleep < 7 ~ "Less than 7 hours",
+      MedianHoursAsleep >= 7 & MedianHoursAsleep < 9 ~ "7-8 hours",
+      MedianHoursAsleep >= 9 ~ "9 hours or more"
+    ),
+    Sleep_efficiency_recod = case_when(
+      Sleep_efficiency < 85 ~ "Less than 85%",
+      Sleep_efficiency >= 85 ~ "85% or more"
+    ),
+    include.lowest = TRUE
+  )
+
+# Show the resulting dataframe
+head(median_sleep_data)
+```
+
+In ***Figure 6*** depicted below, the data analysis related to sleep is presented. In **graph A**, the percentage of individuals in the study sample who achieve sleep hour records within the recommendations is reflected (**57.1%** of people); the rest (including the individual with Id = **1844505072**, with values above but only on weekends, assuming it as valid) records inadequate sleep times (**42.9%**). For these individuals, it would also be interesting for **Bellabeat** to **include messages about the importance of adequate sleep duration** for health in their products, encouraging individuals to obtain adequate sleep duration. **Graph B** reflects the adequacy of individuals regarding sleep efficiency. As observed, a high number of individuals achieve adequate sleep efficiency values (**90.5%**), while only two of these individuals (**9.5%**) do not achieve it, **including Id = 1844505072**. *For these individuals, **Bellabeat** could provide simple messages to help in reducing sleep latency. For instance, '-make sure that your bedroom is entirely dark (use blackout curtains to block outside street lights) and the temperature is cool (between 16°C and 19°C is ideal)-'. Other lifestyle changes such as '-reducing screen time at least one hour before bedtime, drinking less alcohol and getting more exercise-' may also help you upgrade your sleep quality'. An additional recommendation would be for **Bellabeat** to incorporate the **assessment of sleep architecture** into their wearable devices, meaning that they evaluate the different sleep stages and provide the user with additional and detailed guidance to help achieve high-quality sleep*.
+
+```{r}
+# Funtion:  Create bar plot
+# Description: Create bar plot from sleep data
+sleep_bar_plot <- function(data, variable, x_axis_label) {
+  ggplot(data = data, 
+         aes(x = {{ variable }}, 
+             y = after_stat(count) / sum(after_stat(count)), 
+             fill = as.numeric(after_stat(count) / sum(after_stat(count))))) +
+    geom_bar(width = 0.40) +
+    scale_y_continuous(labels = function(x) paste0(x * 100)) +
+    labs(y = "Percent") +
+    scale_fill_gradient(low = "#227ad2", high = "#164f86") +
+    guides(fill = guide_legend(title = NULL)) +
+    theme_minimal_hgrid(12) +
+    theme(axis.text.x = element_text(size = 12)) +
+    xlab(x_axis_label)
+}
+
+# Call the function for Sleep_duration
+p1 <- sleep_bar_plot(median_sleep_data, Sleep_duration_recod, "Sleep Duration")
+                       
+# Call the function for Sleep_efficiency
+p2 <- sleep_bar_plot(median_sleep_data, Sleep_efficiency_recod, "Sleep Efficiency")                       
+
+# Arrange the elements of the figure according to the chosen layout
+# Custom layout (# is an empty area)
+design <- "
+  12
+"
+# Combine the plots with a custom layout
+p1 + p2 + plot_layout(design = design) + 
+  
+  # Add titles, subtitles, and caption to the figure
+  plot_annotation(
+    title = "Figure 6. Sleep Duration and Efficiency",
+    subtitle = "Data frame: 'activity'",
+    caption = "Source: Fitbit's physical activity tracking records") +
+   
+  # Label for every graphic
+  plot_annotation(tag_levels = "A"
+)
+```
+
+![image.png](attachment:f2cf6b22-8426-4c60-8e57-b71e673c7af0.png)
+
+```{r}
+# Calculate the number of individuals in each category
+count_data <- median_sleep_data %>%
+  group_by(Sleep_duration_recod) %>%
+  summarize(Count = n())
+
+# Calculate the percentage that each category represents
+total_count <- sum(count_data$Count)
+sleep_duration_count <- count_data %>%
+  mutate(Percentage = round((Count / total_count) * 100, 1))
+
+# Display the table
+sleep_duration_count
+```
+
+```{r}
+# Calculate the number of individuals in each category
+count_data <- median_sleep_data %>%
+  filter(!is.na(Sleep_efficiency_recod)) %>%
+  group_by(Sleep_efficiency_recod) %>%
+  summarize(Count = n())
+
+# Calculate the percentage that each category represents
+total_count <- sum(count_data$Count)
+sleep_efficiency_count <- count_data %>%
+  mutate(Percentage = round((Count / total_count) * 100, 1))
+
+# Display the table
+sleep_efficiency_count
+```
+
+# 4.5) Cluster analysis
+
+Cluster Analysis is presented as a comprehensive approach for summarizing and extracting relevant information from data collected through wearable devices. After examining usage patterns and trends in physical activity and sleep, the analysis categorizes individuals into similar groups based on multiple variables. This structured perspective offers insights into the diversity of behaviors and profiles within the sample, providing valuable information about habits, preferences, and needs.
+
+In many scenarios, Cluster Analysis is combined with Principal Component Analysis (PCA) to address a common challenge that often complicates the execution and interpretation of the former: multicollinearity. Multicollinearity refers to the high correlation between predictor variables in a dataset, which can lead to suboptimal or biased results in cluster analysis. PCA plays a crucial role in this context by reducing the dimensionality of the original data and resolving the issue of multicollinearity. By incorporating the principal components into cluster analysis, it is worked with independent and uncorrelated variables, simplifying the identification of meaningful groups based on similar behavioral patterns. The following section will present the key findings and conclusions resulting from this integrated approach.
+
+This part of the work will be presented in several stages as it progresses.
+
+### 4.5.1) Preparing the data prior to the analyses
+
+For this part of the analysis, the **activity** database was used, in which the variables of interest were selected for use in the remaining tests. Initially, the following variables were chosen: "Id," "TotalSteps," "TotalDistance," "VeryActiveDistance," "ModeratelyActiveDistance," "LightActiveDistance," "VeryActiveMinutes," "FairlyActiveMinutes," "LightlyActiveMinutes," "SedentaryMinutes," "Calories," and "TotalHoursAsleep." After discarding all records that had any missing values (**NA**), the median was calculated for each of the variables for each individual. Subsequently, the variable "Sleep_efficiency" was included in the database.
+
+```{r}
+# Preparing the data before creating the correlation matrix
+
+# Load packages
+library(corrplot) # Visually display the correlation matrices
+# library(Hmisc) # Contains valuable functions and utilities for data analysis and high-level graphics
+
+# Create a data frame with variables of interest
+activity_correlation <- activity_copy[, c("Id", "TotalSteps", "TotalDistance", "VeryActiveDistance", 
+                                          "ModeratelyActiveDistance", "LightActiveDistance", 
+                                          "VeryActiveMinutes", "FairlyActiveMinutes", "LightlyActiveMinutes",
+                                          "SedentaryMinutes", "Calories", "TotalHoursAsleep")]
+
+# Exclude NA values from the data
+activity_correlation <- na.omit(activity_correlation)
+
+# Calculate a single value (median) for each individual and variable
+activity_correlation <- aggregate(. ~ Id, data = activity_correlation, FUN = median)
+
+# Add the variable "Sleep_efficiency" to 'activity_correlation' 
+activity_correlation$Sleep_efficiency <- median_sleep_data$Sleep_efficiency[match(activity_correlation$Id, median_sleep_data$Id)]
+
+# Remove 'Id' column
+activity_correlation <- activity_correlation[, c("TotalSteps", "TotalDistance", "VeryActiveDistance", 
+                                                 "ModeratelyActiveDistance", "LightActiveDistance", 
+                                                 "VeryActiveMinutes", "FairlyActiveMinutes", "LightlyActiveMinutes", 
+                                                 "SedentaryMinutes", "Calories", "TotalHoursAsleep", "Sleep_efficiency")]
+```
+
+### 4.5.2) Creating the Correlation Matrix
+
+***Sources consulted for the creation of the Correlation Matrix***: \* *Wei T, Simko V. An Introduction to corrplot Package. [Internet] [updated 2021 Nov 18; cited 2023 Sept 23] Availablefrom: <https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html>* \* *Salazar C. Cálculo de correlaciones. [Internet] [updated 2018 Feb 12; cited 2023 Sept 23] Availablefrom: <https://rpubs.com/camilamila/correlaciones>* \* *Hut I. Correlation tests, correlation matrix, and corresponding visualization methods in R. [Internet] [updated 2017 Jan 12; cited 2023 Sept 23] Availablefrom: <https://rstudio-pubs-static.s3.amazonaws.com/240657_5157ff98e8204c358b2118fa69162e18.html>*
+
+In ***graph*** presented below (**correlation matrix**), it is observed the previously mentioned multicollinearity, particularly among variables related to physical activity. Additionally, it is noteworthy in this graph that the variable 'Calories' shows a low correlation with those variables representing distances traveled and the time spent on those journeys. This suggests that it is highly likely that other activities are contributing to the caloric expenditure of these individuals (activities that do not necessarily involve walking); but they are not being recorded by the wearable devices. *It would be beneficial to consider the possibility of explicitly recording the type of activity, exercise, or sport in Bellabeat devices to enhance the understanding of relationships between variables*.
+
+```{r}
+# Creating the correlation matrix figure
+
+# Correlation matrix calculation 
+correlacion_matrix <- round(cor(activity_correlation), 1)
+
+# Configure the figure layout with two columns
+par(mfrow = c(1, 1))
+
+# Create the correlation plots
+testRes = cor.mtest(correlacion_matrix, conf.level = 0.95)
+corrplot(correlacion_matrix, p.mat = testRes$p, method = 'circle', type = 'lower', insig='blank',
+         addCoef.col ='black', number.cex = 0.8, order = 'AOE', diag=FALSE)
+```
+
+```{r}
+# Load library
+library(DataExplorer)
+
+# Create and display 'correlation matrix' chart
+plot_correlation(activity_correlation [sapply(activity_correlation,
+is.numeric)],
+title = "Correlation Matrix")
+```
+
+
+### 4.5.3) Running Principal Components Analysis
+
+***Sources consulted for the Principal Components Analysis***: \* *Kassambara A. Principal component methods in R: Practical Guide. [Internet] [updated 2017 Sep 23; cited 2023 Sept 23] Availablefrom: <http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/112-pca-principal-component-analysis-essentials/#data-standardization>* \* *Gil C. Análisis de componentes principales. [Internet] [updated 2018 Jun 18; cited 2023 Sept 23] Availablefrom: <https://rpubs.com/Cristina_Gil/PCA>* \* *Amat J. Análisis de Componentes Principales (Principal Component Analysis, PCA) y t-SNE. [Internet] [updated 2017 Jun; cited 2023 Sept 23] Availablefrom: <https://cienciadedatos.net/documentos/35_principal_component_analysis#Ejemplo_cálculo_directo_de_PCA_con_R>*
+
+With the following code block, the principal component analysis (PCA) was performed.
+
+```{r}
+# Principal Components Analysis 
+
+# Load data base
+activity_pca <- activity_correlation
+
+# Scale all the numeric columns
+activity_pca <- as.data.frame(scale(activity_pca))
+
+# Perform the principal component analysis on 'activity_pca_result'
+activity_pca_result <- prcomp(activity_pca, center = TRUE)
+```
+
+In the following graph, the amount of variance explained by each component is shown once the PCA has been executed.
+
+```{r}
+library(factoextra)
+
+# "Scree plot" represents the eigenvalues sorted from highest to lowest
+fviz_screeplot(activity_pca_result, addlabels = TRUE, ylim = c(0, 40), main = "Variance explained by each component", 
+               barcolor = "#164f86", linecolor = "#164f86", barfill = "#164f86")
+```
+
+```{r}
+# Retrieve the results (coefficients) of the analysis (PCA)
+summary(activity_pca_result)
+```
+
+***Comments***: According to the cumulative variances, the first five components (**PC1, PC2, PC3, PC4, PC5**) **retain 92.3%** of the useful information, which was considered sufficient for the purposes of this work; therefore, these five components would be taken for further analysis.
+
+```{r}
+# Get the variable loadings in each component
+component_loadings <- activity_pca_result$rotation
+
+# Show the variable loadings in each component selected
+print(component_loadings[, 1:5])
+
+```
+
+In the table that follows, the loadings representing each variable within each of the obtained components are shown (sorted from most negative to most positive). Subsequently, the characterization of each component based on these loadings is included. The interpretation made would serve as a starting point for the characterization of the clusters that were made later.
+
+![image.png](attachment:5dbbc528-7002-4ee2-aee6-f472a932f4fa.png) \###### \*\* Table imported from Microsoft Excel\*
+
+#### Characterization of the selected components:
+
+-   **PC1**: This component is indicative of a less active lifestyle, with lower caloric expenditure and a greater tendency for sedentary activities. There do not appear to be significant sleep-related issues in this group. (**Sedentary lifestyle**)
+
+-   **PC2**: This group manifests a behavior characterized by low caloric expenditure, especially in long but slow-paced walks. The sleep quality in this group tends to be average. (**Light physical activity / Average sleep quality**)
+
+-   **PC3**: It is characterized by poor sleep efficiency, with moderate sleep durations in moderately active individuals. Physical activity in this group is classified as moderate, but sleep quality is problematic. (**Moderate physical activity / Poor sleep quality**)
+
+-   **PC4**: Despite having longer sleep durations, this component shows less optimal sleep efficiency compared to other groups. In addition, there is a higher engagement in vigorous physical activities, particularly brisk walking. (**Poor sleep quality / Vigorous physical activity**)
+
+-   **PC5**: This component represents a healthy balance between physical activity and sleep. It is characterized by high caloric expenditure in various activities, not necessarily related to walking, and stands out for excellent sleep quality. (**Healthy balance of activity and sleep**)
+
+### 4.5.4) Running Cluster Analysis
+
+***Sources consulted for the Cluster Analysis***: \* *Kassambara A. K-means clustering visualization in R: step by step guide. In DataNovia. [Internet] [updated 2018 Jun 18; cited 2023 Sept 23] Availablefrom: <https://www.datanovia.com/en/blog/k-means-clustering-visualization-in-r-step-by-step-guide/>* \* *DataNovia. Determining the optimal number of clusters: 3 must know methods. [Internet] [cited 2023 Sept 23] Availablefrom: <https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/>* \* *DataNovia. K-Means clustering in R: Algorithm and practical examples. [cited 2023 Sept 23] Availablefrom: <https://www.datanovia.com/en/lessons/k-means-clustering-in-r-algorith-and-practical-examples/>* \* *DataNovia. Assessing Clustering Tendency. [Internet] [cited 2023 Sept 23] Availablefrom: <https://www.datanovia.com/en/lessons/assessing-clustering-tendency/#google_vignette>* \* *DataNovia. Clustering example: 4 steps you should know. [Internet] [cited 2023 Sept 23] Availablefrom: <https://www.datanovia.com/en/blog/clustering-example-4-steps-you-should-know/>* \* *Romero L, Ramirez M, Rojas J, Darghan E. Análisis de Cluster. [Internet] [updated 2020 Jun 23; cited 2023 Sept 23] Availablefrom: <https://rpubs.com/lhromeroj/analisisdeclusterR>*
+
+To proceed with the cluster analysis itself, using the components generated and selected in the previous steps (**PC1**, **PC2**, **PC3**, **PC4** y **PC5**), the first step was to extract them. The extracted components were added as variables to the database for the cluster analysis.
+
+```{r}
+# Extract the components 
+extracted_comp_activity <- activity_pca_result$x[, 1:5]
+```
+
+```{r}
+head(extracted_comp_activity)
+```
+
+The next step was to assess whether the data displayed patterns suitable for forming clusters. Two methods were employed to evaluate the clustering tendency: a) a statistical approach using the **Hopkins statistic**, and b) a visual method using the **Visual Assessment of Cluster Tendency** (**VAT**) algorithm. The Hopkins statistic employs a threshold of 0.5; values above 0.5 suggest a clustering tendency (the closer the statistic is to 1, the stronger the clustering tendency), while values below 0.5 indicate the opposite. The VAT detects clustering tendency visually by counting the number of square-shaped dark blocks along the diagonal in a VAT image. The color intensity corresponds to the dissimilarity between observations: **Red** represents **high similarity** (i.e., low dissimilarity), while **blue** signifies **low similarity**.
+
+```{r}
+# Assessing the Cluster Tendency
+
+# Hopkins statistic
+res <- get_clust_tendency(extracted_comp_activity, n = 20, graph = TRUE)
+
+# Hopskin statistic
+res$hopkins_stat
+
+# Visualize the dissimilarity matrix (VAT)
+print(res$plot)
+```
+
+The **Hopkins statistic** (**0.585**), which is **above the threshold of 0.5**, as well as the **dissimilarity matrix (VAT) image**, **confirm the presence of a cluster structure in the dataset**. While these values may not be very high, indicating that the clusters may not be completely distinct, cluster analysis, in this case, can still provide valuable insights into behavioral patterns within this group of individuals.
+
+The next step was to choose the number of clusters reasonably, minimizing information loss and allowing for the creation of as cohesive clusters as possible. The **elbow method** was chosen among the various methods proposed for deciding on the number of clusters, as it perfectly met the requirements of this study.
+
+```{r}
+# Estimating and visualizing the optimal number of clusters (Elbow method)
+fviz_nbclust(extracted_comp_activity, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2) +
+  labs(subtitle = "Elbow method")
+```
+
+The cluster analysis itself was carried out using the **K-means method**. Below is the code used and its graphical representation.
+
+```{r}
+# Computing k-means clustering
+
+# Compute k-means with k=5
+set.seed(123)
+kmeans_activity <- kmeans(extracted_comp_activity, 5, nstart = 25)
+```
+
+```{r}
+# Getting coordinades from Principal Components Analysis 
+
+# Get coordinates
+activity.coord <- as.data.frame(get_pca_ind(activity_pca_result)$coord)
+
+# Add clusters obtained using the K-means algorithm
+activity.coord$cluster <- factor(kmeans_activity$cluster)
+```
+
+```{r}
+# Data inspection
+head(activity.coord[, 1:5])
+```
+
+```{r}
+# Percentage of variance explained by dimensions
+eigenvalue <- round(get_eigenvalue(activity_pca_result), 1)
+variance.percent <- eigenvalue$variance.percent
+head(eigenvalue)
+```
+
+
+```{r}
+# Print the cluster analysis results
+print(kmeans_activity)
+```
+
+The following table shows the contribution of each variable (components) to the formation of each cluster.
+
+![image.png](attachment:6314f37c-43e4-488f-840d-de80a157a6f0.png)
+
+###### \*\* Table imported from Microsoft Excel\*
+
+In the following graph, the obtained clusters are displayed through a data analysis, where each point represents an observation, and its color or position indicates membership in a specific group. This visualization allows for the identification of clustering patterns and relationships among observations within the analyzed dataset.
+
+```{r}
+library(ggpubr)
+# Creating the cluster graph 
+ggscatter(activity.coord, x = "Dim.1", y = "Dim.2",
+   color = "cluster", shape = 16,
+   palette = c("#00AFBB", "#E7B800", "#FC4E07", "#3F9B0B", "#FF6600"),
+   ellipse = TRUE, mean.point = TRUE, ellipse.type = "euclid",
+   star.plot = TRUE, legend = "right",
+   xlab = paste0("Dim 1 (", variance.percent[1], "% )" ),
+   ylab = paste0("Dim 2 (", variance.percent[2], "% )" ),
+   main = "Cluster plot") +
+  geom_text(aes(label = rownames(activity.coord)), hjust = 0, vjust = 0)
+```
+
+### 4.5.5) Cluster analysis results
+
+**Comments**: The cluster analysis was successfully conducted, identifying five distinct clusters based on the analyzed variables. Most of the clusters exhibit high similarity among their members, indicating cohesion within the group. However, it is important to mention that two of the clusters consist of only one individual, implying limited cohesion in these groups due to the lack of comparisons between multiple individuals. Nevertheless, collectively, these clusters explain **74.1%** of the variability in the data, thus supporting the validity of the cluster analysis approach used in this study. It is important to note the limitations discussed earlier regarding the characteristics and quality of the data used, as these limitations may introduce heterogeneity into the data. However, despite these potential sources of variability, this value of 74.1% indicates that the found clusters are capable of capturing a significant proportion of data variability and are distinctive in terms of the characteristics that define each group. The cluster analysis has been effective in identifying patterns and structures in the data, allowing for clear differentiation among the groups.
+
+#### **4.5.5.1) Clusters characterization**
+
+-   **Cluster 1** (*9 individual*): It seems to represent a group with some light physical activity, better sleep efficiency compared to other clusters, and a possible inclination towards vigorous physical activity, although not as pronounced. Sleep quality does not seem to be a significant issue in this group.
+
+-   **Cluster 2** (*1 individuals*): The characterization of this cluster appears to be consistent with its sole member. It stands out for a high level of physical activity, especially brisk long-distance walks, contributing to its high caloric expenditure. Sleep quality does not appear to be a problem in this cluster.
+
+-   **Cluster 3** (*1 individuals*): This cluster is distinguished by moderate caloric expenditure, primarily related to moderate-paced walks. However, sleep quality is not the best among all groups, with insufficient sleep duration and efficiency.
+
+-   **Cluster 4** (*7 individuals*): Compared to the other groups, this one shows less favorable results in both physical activity and sleep quality. Individuals in this group mainly engage in short and slow-paced walks, resulting in low caloric expenditure. They have a longer sleep duration than recommended with poor sleep efficiency.
+
+-   **Cluster 5** (*3 individual*): This cluster represents individuals with a better balance in both their levels of physical activity and sleep quality. They seem to be involved in moderately intense physical exercises that include walks and likely other activities that do not necessarily involve walking. Additionally, they meet the recommended hours of sleep and have efficient sleep.
+
+#### **4.5.5.2) General assessment of Cluster Analysis**:
+
+The results of this cluster analysis provide a detailed view of the diversity of behaviors and profiles in the sample of women using Bellabeat wearable devices. Five distinct groups with unique characteristics were identified. These findings suggest that physical activity, caloric expenditure, and sleep quality are key dimensions in assessing women's well-being, and that there are significant differences in how these dimensions combine in different subgroups.
+
+It is important to note that sleep efficiency and duration play a fundamental role in overall sleep quality and, therefore, in women's well-being. The identification of these groups can be valuable for tailoring Bellabeat's health and well-being recommendations, providing users with a deeper understanding of their individual needs and behaviors.
+
+Overall, this study highlights the importance of considering variability in physical activity and sleep metrics among women, enabling more specific and effective solutions to improve their overall well-being. The results provide a solid foundation for future research and improvements in Bellabeat devices and can assist users in making informed decisions about their health and lifestyle.
+
+# V) **Share and act**
+
+# 5.1) Technical recommendations to Bellabeat derived from the study
+
+During the study, technical considerations emerged that were desired to be communicated to Bellabeat. These recommendations are divided into two categories: one focuses on improving the quality and management of data and information for future studies, while the other is aimed at providing support to users in specific aspects promoted by Bellabeat's devices. Below, these recommendations are detailed:
+
+1.  **Improve Sleep Quality**: Providing simple messages to help users enhance sleep quality is a sound idea. Suggestions related to the sleep environment, screen time, and habits can be valuable for users struggling with sleep issues.
+
+2.  **Incorporate Detailed Sleep Assessment**: The recommendation to assess sleep architecture and offer detailed guidance is crucial to help users understand and improve their sleep.
+
+3.  **Record Activity Type**: Explicitly recording the type of activity or exercise on wearable devices can provide a more comprehensive view of users' physical activity and assist in identifying specific trends and patterns.
+
+4.  **Monitor WHO Recommendations Compliance**: Implementing monitoring of compliance with the World Health Organization's recommendations on physical activity quantity and intensity through wearable devices is a healthy and motivational initiative to encourage users to achieve these goals.
+
+5.  **Include Scale in their Product Portfolio**: The inclusion of a scale that measures body composition and is connected to other tracking devices is a valuable suggestion to facilitate the collection of health data more accurately and without additional user effort.
+
+# 5.2) High-level Recommendations to Bellabeat
+
+1.  **Promote a holistic and personalized approach to women's well-being**: Bellabeat could enhance its marketing strategy by personalizing messages and recommendations for its users. By understanding individual behavioral patterns, the company can offer specific advice and content tailored to each user's needs. This would not only increase the relevance of communications but also improve customer retention and satisfaction by demonstrating genuine commitment to their well-being.
+
+2.  **Personalizing user experience through education and awareness**: An effective marketing strategy could include a focus on user education and awareness. Bellabeat can provide informative content about the importance of physical activity, sleep quality, and other health-related aspects. Additionally, collaborations with health experts could support the creation of valuable content. This initiative would strengthen the brand as a trustworthy source of health information and empower users to make more informed decisions about their well-being.
+
+3.  **Fostering a supportive and loyalty-building community**: To build strong relationships with users, Bellabeat could implement loyalty programs and create an online community. Offering rewards for engagement and goal achievement could increase user retention and encourage adherence to Bellabeat products. Furthermore, providing a space where users can share their experiences, challenges, and successes could create a sense of community and belonging. This would not only improve user retention but also potentially expand the user base through positive community referrals.
+
+# 5.3) Deliverable
+
+A PowerPoint presentation that includes the key information and high-level conclusions based on the analyses for the presentation to Bellabeat was created. The presentation can be viewed through this [link](http://kaggle/input/bellabeat-ppt-presentation/Bellabeat_Case_Study_presentation.pptx).
+
+# Additional sources consulted
+
+-   Introduction to R. [cited 2023 Sept 23] Availablefrom: <http://statseducation.com/Introduction-to-R/>
+
+-   R Charts. [cited 2023 Sept 23] Availablefrom: <https://r-charts.com/es/>
+
+-   Ramírez O. Aprendiendo Bioestadística con R. [updated 2019 Jun 20; cited 2023 Sept 23] Availablefrom: <https://osoramirez.github.io/R_Para_Biologos/test-de-hipotesis-y-pruebas-no-parametricas.html#kolmogorov-smirnov-test>
+
+-   Coll V, Pérez PJ. Documentos Rmarkdown (.Rmd). [updated 2016 Jun; cited 2023 Sept 23] Availablefrom: <https://www.uv.es/pjperez/curso_R/tt_8_Rmarkdown_v0.html>
+
+-   Paradinas I. Curso R base. [updated 2021 Apr 03; cited 2023 Sept 23] Availablefrom: <https://bookdown.org/paradinas_iosu/CursoR/>
+
+-   Hernández F, Correa JC. Gráficos con R. [updated 2020 Oct 30; cited 2023 Sept 23] Availablefrom: <https://fhernanb.github.io/Graficos-con-R/>
+
+-   Xie Y, Allaire JJ, Grolemund G. R Markdown: The Definitive Guide. [updated 2023 May 15; cited 2023 Sept 23] Availablefrom: <https://bookdown.org/yihui/rmarkdown/>
+
+-   Batra, Neale, et al. Manual de R para Epidemiología. [updated 2021; cited 2023 Sept 23] Availablefrom: <https://epirhandbook.com/es/index.html>
+
+-   Data to Viz. [cited 2023 Sept 23] Availablefrom: <https://www.data-to-viz.com/caveats.html>
+
+-   Wickham H, Navarro D, Lin Pedersen TL. ggplot2: Elegant Graphics for Data Analysis (3e). [cited 2023 Sept 23] Availablefrom: <https://ggplot2-book.org>
