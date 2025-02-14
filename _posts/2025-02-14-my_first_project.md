@@ -126,7 +126,7 @@ The function '**select()**' is part of the **dplyr package**, which is included 
 
 The table below presents a summary of the overall information extracted from the databases.
 
-![fitbit_table_1.png](attachment:d1032462-6069-423f-936f-76df0e91c1cd.png)
+<img width="1776" alt="fitbit_table_1" src="https://github.com/user-attachments/assets/63f78833-10aa-4397-8777-fda1c9f687f0" />
 
 The **dailyActivity**, **dailyCalories**, **dailylntensities** and **dailySteps** databases had the same number of rows (**940**) and the same number of Ids (**33**). To check whether the last three databases were contained within the first one, the following code was used to compare **dailyActivity** with the remaining ones. Here is an example of the code to compare **dailyCalories** with **dailyActivity**:
 
