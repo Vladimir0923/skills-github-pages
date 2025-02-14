@@ -1,5 +1,5 @@
 ---
-title: "My First Project"
+title: "PROFESSIONAL CERTIFICATE. Google Data Analytics"
 date: 2025-02-14
 ---
 
