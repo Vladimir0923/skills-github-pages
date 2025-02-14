@@ -706,7 +706,6 @@ text(barplot(category_counts, plot = FALSE), category_counts, labels = paste0(ro
 
 ![fig1](https://github.com/user-attachments/assets/c90ee94e-dcb2-4e67-b689-b023d649d0fe)
 
-
 #### The code below performs the comparison of caloric expenditure between individuals who used their devices for more than 20 days and those who used them less (Wilcoxon test). The results of this test support the homogeneity in terms of energy expenditure in both groups.
 
 ```{r}
@@ -921,7 +920,7 @@ mtext(subtitle, side = 3, line = 1, cex = 1, font = 1, adj = 0)
 mtext(caption, side = 1, line = 4, cex = 0.8, font = 1, adj = 1)
 ```
 
-![image.png](attachment:26dc75b7-4392-4864-aae3-069fa11ec8cd.png)
+![fig2](https://github.com/user-attachments/assets/f4a4ec1e-6178-4101-9b56-48207a85eae1)
 
 ```{r}
 # Summary statistics for 'WeightKg' variable
