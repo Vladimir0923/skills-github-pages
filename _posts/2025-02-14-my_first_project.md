@@ -704,6 +704,9 @@ barplot(category_counts, main = "Figure 1. Frequency of Usage of Smart Devices",
 text(barplot(category_counts, plot = FALSE), category_counts, labels = paste0(round(category_percentages, 1), "%"), pos = 3)
 ```
 
+![fig1](https://github.com/user-attachments/assets/c90ee94e-dcb2-4e67-b689-b023d649d0fe)
+
+
 #### The code below performs the comparison of caloric expenditure between individuals who used their devices for more than 20 days and those who used them less (Wilcoxon test). The results of this test support the homogeneity in terms of energy expenditure in both groups.
 
 ```{r}
