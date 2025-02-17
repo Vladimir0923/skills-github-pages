@@ -1,8 +1,3 @@
----
-title: "PROFESSIONAL CERTIFICATE. Google Data Analytics"
-date: 2025-02-14
----
-
 ## **PROFESSIONAL CERTIFICATE. Google Data Analytics**
 
 ## Case Study 2
